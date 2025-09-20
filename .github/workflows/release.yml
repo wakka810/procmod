@@ -1,0 +1,84 @@
+name: Release Artifact
+
+on:
+  push:
+    branches:
+      - main
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-upload:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          profile: minimal
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Prepare release metadata
+        id: release_meta
+        shell: bash
+        run: |
+          SHORT_SHA="$(echo "${{ github.sha }}" | cut -c1-12)"
+
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+            NAME="${{ github.event.release.name }}"
+            if [ -z "$NAME" ] || [ "$NAME" = "null" ]; then
+              NAME="$TAG"
+            fi
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            TAG="${{ github.sha }}"
+            NAME="commit-${SHORT_SHA}"
+          else
+            TAG="commit-${SHORT_SHA}"
+            NAME="$TAG"
+          fi
+
+          SAFE_TAG="$(echo "$TAG" | sed 's#[^A-Za-z0-9._-]#-#g')"
+          ASSET="procmod-${SAFE_TAG}-windows-x86_64.exe"
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "asset=$ASSET" >> "$GITHUB_OUTPUT"
+          echo "safe_tag=$SAFE_TAG" >> "$GITHUB_OUTPUT"
+          echo "metadata tag=$TAG name=$NAME asset=$ASSET"
+
+      - name: Package binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          cp target/release/procmod.exe "artifacts/${{ steps.release_meta.outputs.asset }}"
+
+      - name: Ensure release exists
+        if: github.event_name != 'release'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          if ! gh release view "${{ steps.release_meta.outputs.tag }}" >/dev/null 2>&1; then
+            gh release create "${{ steps.release_meta.outputs.tag }}" \
+              --title "${{ steps.release_meta.outputs.name }}" \
+              --notes "Automated release for commit ${{ github.sha }}" \
+              --target "${{ github.sha }}"
+          fi
+
+      - name: Upload artifact to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          gh release upload "${{ steps.release_meta.outputs.tag }}" "artifacts/${{ steps.release_meta.outputs.asset }}" --clobber

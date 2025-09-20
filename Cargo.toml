@@ -1,0 +1,21 @@
+[package]
+name = "procmod"
+version = "0.1.0"
+edition = "2024"
+description = "Monitor Windows process module load/unload events"
+readme = "README.md"
+
+[dependencies]
+[target.'cfg(windows)'.dependencies]
+anyhow = "1.0"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+clap = { version = "4.5", features = ["derive"] }
+ctrlc = "3.4"
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Threading"
+] }
