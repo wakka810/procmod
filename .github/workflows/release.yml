@@ -40,8 +40,8 @@ jobs:
               NAME="$TAG"
             fi
           elif [ "${{ github.event_name }}" = "push" ]; then
-            TAG="${{ github.sha }}"
-            NAME="commit-${SHORT_SHA}"
+            TAG="commit-${SHORT_SHA}"
+            NAME="$TAG"
           else
             TAG="commit-${SHORT_SHA}"
             NAME="$TAG"
