@@ -31,29 +31,27 @@ jobs:
         id: release_meta
         shell: bash
         run: |
-          SHORT_SHA="$(echo "${{ github.sha }}" | cut -c1-12)"
+          SHORT_SHA="$(echo "${{ github.sha }}" | cut -c1-7)"
 
           if [ "${{ github.event_name }}" = "release" ]; then
             TAG="${{ github.event.release.tag_name }}"
             NAME="${{ github.event.release.name }}"
+            if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+              TAG="$SHORT_SHA"
+            fi
             if [ -z "$NAME" ] || [ "$NAME" = "null" ]; then
               NAME="$TAG"
             fi
-          elif [ "${{ github.event_name }}" = "push" ]; then
-            TAG="commit-${SHORT_SHA}"
-            NAME="$TAG"
           else
-            TAG="commit-${SHORT_SHA}"
+            TAG="$SHORT_SHA"
             NAME="$TAG"
           fi
 
-          SAFE_TAG="$(echo "$TAG" | sed 's#[^A-Za-z0-9._-]#-#g')"
-          ASSET="procmod-${SAFE_TAG}-windows-x86_64.exe"
+          ASSET="procmod.exe"
 
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "asset=$ASSET" >> "$GITHUB_OUTPUT"
-          echo "safe_tag=$SAFE_TAG" >> "$GITHUB_OUTPUT"
           echo "metadata tag=$TAG name=$NAME asset=$ASSET"
 
       - name: Package binary
